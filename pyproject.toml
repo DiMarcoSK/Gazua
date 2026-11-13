@@ -1,0 +1,17 @@
+[project]
+name = "gazua"
+version = "0.1.0"
+description = "Refusal-direction abliteration study on small LLMs"
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.5",
+    "transformers>=4.46",
+    "tqdm",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["gazua"]
