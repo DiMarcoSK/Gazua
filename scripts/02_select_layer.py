@@ -15,6 +15,7 @@ p.add_argument("--n-test", type=int, default=16)
 p.add_argument("--start", type=float, default=0.2, help="sweep start, as a fraction of depth")
 p.add_argument("--end", type=float, default=0.8, help="sweep end, as a fraction of depth")
 p.add_argument("--max-kl", type=float, default=0.1)
+p.add_argument("--refusal-tol", type=float, default=0.05, help="slack above the lowest refusal rate")
 p.add_argument("--out", default="artifacts/layer_sweep.json")
 args = p.parse_args()
 
@@ -39,9 +40,11 @@ for layer in range(int(args.start * n_layers), int(args.end * n_layers) + 1):
     results.append({"layer": layer, "refusal_rate": rr, "kl": kl, "completions": completions})
     print(f"layer {layer:3d}: refusal={rr:5.0%}  KL={kl:.4f}")
 
-ok = [r for r in results if r["kl"] <= args.max_kl] or results
-best = min(ok, key=lambda r: (r["refusal_rate"], r["kl"]))
+floor = min(r["refusal_rate"] for r in results)
+best = min((r for r in results if r["refusal_rate"] <= floor + args.refusal_tol), key=lambda r: r["kl"])
 print(f"\nbest layer: {best['layer']} (refusal={best['refusal_rate']:.0%}, KL={best['kl']:.4f})")
+if best["kl"] > args.max_kl:
+    print(f"warning: KL above {args.max_kl}; the model may be noticeably degraded")
 
 Path(args.out).parent.mkdir(parents=True, exist_ok=True)
 Path(args.out).write_text(

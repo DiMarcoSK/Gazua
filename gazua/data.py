@@ -38,18 +38,23 @@ def harmless() -> list[str]:
     return [r["instruction"] for r in rows if not r["input"].strip()]
 
 
-def _split(xs: list[str], n_train: int, n_test: int, seed: int):
+MAX_TEST = 64  # test slice is reserved at this size so eval never overlaps it
+
+
+def _split(xs: list[str], n_train: int, n_test: int, n_eval: int, seed: int):
     xs = xs[:]
     random.Random(seed).shuffle(xs)
-    return xs[:n_train], xs[n_train : n_train + n_test]
+    eval_start = n_train + MAX_TEST
+    return xs[:n_train], xs[n_train : n_train + n_test], xs[eval_start : eval_start + n_eval]
 
 
-def load_splits(n_train: int = 128, n_test: int = 32, seed: int = 0) -> dict[str, list[str]]:
-    h_train, h_test = _split(harmful(), n_train, n_test, seed)
-    s_train, s_test = _split(harmless(), n_train, n_test, seed)
-    return {
-        "harmful_train": h_train,
-        "harmful_test": h_test,
-        "harmless_train": s_train,
-        "harmless_test": s_test,
-    }
+def load_splits(
+    n_train: int = 128, n_test: int = 32, n_eval: int = 0, seed: int = 0
+) -> dict[str, list[str]]:
+    n_test = min(n_test, MAX_TEST)
+    out = {}
+    for name, xs in (("harmful", harmful()), ("harmless", harmless())):
+        out[f"{name}_train"], out[f"{name}_test"], out[f"{name}_eval"] = _split(
+            xs, n_train, n_test, n_eval, seed
+        )
+    return out

@@ -21,7 +21,24 @@ pip install -e .
 python scripts/01_directions.py    # activations + per-layer refusal direction
 python scripts/02_select_layer.py  # layer sweep: refusal rate vs. KL
 python scripts/03_export.py        # orthogonalize weights, save to models/
+python scripts/04_evaluate.py --base Qwen/Qwen2.5-0.5B-Instruct --abliterated models/<dir>
 ```
+
+Step 4 ends with a plain verdict (`SUCCESS`, `PARTIAL` or `UNSUCCESSFUL`) based on
+held-out prompts never used for the direction or layer choice.
+
+## Results
+
+`Qwen2.5-0.5B-Instruct`, layer 15, CPU, 64 held-out prompts per set:
+
+| Metric | Base | Abliterated |
+|---|---|---|
+| Harmful prompts refused | 92% | 3% |
+| Harmless prompts refused | 3% | 3% |
+| Perplexity on base responses | 1.829 | 1.918 (+4.9%) |
+| Next-token KL on harmless prompts | | 0.086 |
+
+Verdict: **SUCCESS**.
 
 | File | Purpose |
 |---|---|
@@ -45,6 +62,14 @@ Only three places write into the residual stream: the embedding, attention
 model never represents `r`. Hook ablation (`x ← x − (x·r) r`) and weight
 orthogonalization (`W ← (I − r rᵀ) W`) are therefore equivalent, and step 3
 checks this numerically.
+
+### Massive activations
+
+Qwen (like many LLMs) keeps a few hidden dims with enormous values on the first
+token, the attention sink (dim 62 reaches ~1700 vs. a median of ~5). Any component
+of `r` along those dims makes the ablation shift the sink token far more than any
+other position, which damages attention globally. Step 1 detects these dims
+automatically (peak > 50x median) and zeroes them in `r`; `--keep-massive` disables it.
 
 ## Notes
 
